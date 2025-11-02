@@ -18,50 +18,43 @@ import {
 } from "@/components/ui/card";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
+import Breadcrumbs from "@/components/breadcrumbs";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 /**
- * Checkout Page
- * Displays the billing details form and the order summary.
+ * Trang Checkout
  */
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart();
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Calculate totals. You can add logic for shipping, taxes here.
-  const shippingFee = subtotal > 500 ? 0 : 5; // Example: Free shipping for orders > $500
+  const shippingFee = subtotal > 500 ? 0 : 5;
   const total = subtotal + shippingFee;
 
-  /**
-   * Handles the order placement
-   */
   const handlePlaceOrder = (event: React.FormEvent) => {
     event.preventDefault();
-    // 1. Collect data from the form (you need to add state to manage inputs)
-    // 2. Send data (form info + 'items') to your API/server
-    // 3. Handle the result...
+    setIsLoading(true);
 
-    // Placeholder logic:
-    alert("Order placed successfully!");
-    clearCart(); // Clear the cart after successful order
-    router.push("/home"); // Redirect to homepage
+    setTimeout(() => {
+      toast.success("Order placed successfully!");
+      clearCart();
+      router.push("/home");
+    }, 1500);
   };
 
   return (
     <>
       <Navbar />
       <div className="container mx-auto px-4 py-12 md:px-8">
-        {/* Breadcrumbs (like the PDF) */}
-        <div className="mb-4 text-sm text-muted-foreground">
-          <Link href="/" className="hover:text-primary">
-            Home
-          </Link>{" "}
-          &gt; <span>Checkout</span>
-        </div>
+        <Breadcrumbs />
+
         <h1 className="text-3xl font-bold mb-8">Checkout</h1>
 
         {items.length === 0 ? (
-          // Case: Cart is empty
+          // Trường hợp giỏ hàng rỗng
           <div className="text-center">
             <p className="text-lg text-muted-foreground mb-4">
               Your cart is empty.
@@ -71,37 +64,59 @@ export default function CheckoutPage() {
             </Button>
           </div>
         ) : (
-          // Layout: 2 columns when cart has items
+          // Layout 2 cột
           <form
             onSubmit={handlePlaceOrder}
             className="grid grid-cols-1 lg:grid-cols-2 lg:gap-12"
           >
-            {/* ------------------- */}
-            {/* LEFT COLUMN: FORM   */}
-            {/* ------------------- */}
+            {/* CỘT BÊN TRÁI: FORM*/}
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold">Billing details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" placeholder="John" required />
+                  <Input
+                    id="firstName"
+                    placeholder="John"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" placeholder="Doe" required />
+                  <Input
+                    id="lastName"
+                    placeholder="Doe"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="company">Company Name (Optional)</Label>
-                <Input id="company" placeholder="Your Company" />
+                <Input
+                  id="company"
+                  placeholder="Your Company"
+                  disabled={isLoading}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Street address</Label>
-                <Input id="address" placeholder="123 Main St" required />
+                <Input
+                  id="address"
+                  placeholder="123 Main St"
+                  required
+                  disabled={isLoading}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="city">Town / City</Label>
-                <Input id="city" placeholder="New York" required />
+                <Input
+                  id="city"
+                  placeholder="New York"
+                  required
+                  disabled={isLoading}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
@@ -110,6 +125,7 @@ export default function CheckoutPage() {
                   type="tel"
                   placeholder="+1 234 567 890"
                   required
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -119,51 +135,72 @@ export default function CheckoutPage() {
                   type="email"
                   placeholder="john@example.com"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
 
-            {/* ------------------- */}
-            {/* RIGHT COLUMN: ORDER */}
-            {/* ------------------- */}
+            {/* CỘT BÊN PHẢI: ĐƠN HÀNG */}
             <div className="mt-12 lg:mt-0">
               <Card>
                 <CardHeader>
                   <CardTitle>Your Order</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Product List */}
+                  {/* Danh sách sản phẩm */}
                   <div className="space-y-4">
                     {items.map((item) => (
                       <div
-                        key={item.id}
+                        key={item.product.id}
                         className="flex items-center justify-between"
                       >
                         <div className="flex items-center gap-4">
                           <div className="relative h-16 w-16 overflow-hidden rounded">
                             <Image
-                              src={item.image}
-                              alt={item.name}
+                              src={item.product.images[0]}
+                              alt={item.product.name}
                               fill
                               className="object-cover"
                             />
                           </div>
                           <div>
-                            <p className="font-medium">{item.name}</p>
+                            <p className="font-medium">{item.product.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              Qty: 1
-                            </p>{" "}
-                            {/* Temp: 1, as cart logic doesn't support quantity */}
+                              Qty: {item.quantity}
+                            </p>
                           </div>
                         </div>
-                        <p className="font-medium">${item.price.toFixed(2)}</p>
+                        <p className="font-medium">
+                          $
+                          {(
+                            (item.product.salePrice ?? item.product.price) *
+                            item.quantity
+                          ).toFixed(2)}
+                        </p>
                       </div>
                     ))}
                   </div>
 
                   <Separator />
 
-                  {/* Totals */}
+                  {/* Ô Voucher */}
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Gift card or discount code"
+                      disabled={isLoading}
+                    />
+                    <Button
+                      variant="outline"
+                      type="button"
+                      disabled={isLoading}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  {/* Tổng tiền */}
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <p>Subtotal</p>
@@ -182,14 +219,13 @@ export default function CheckoutPage() {
 
                   <Separator />
 
-                  {/* Payment Methods */}
                   <div className="space-y-4">
                     <h3 className="font-semibold">Payment Method</h3>
                     <div
                       className={`rounded-md border p-4 ${
                         paymentMethod === "bank" ? "border-primary" : ""
                       }`}
-                      onClick={() => setPaymentMethod("bank")}
+                      onClick={() => !isLoading && setPaymentMethod("bank")}
                     >
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -199,6 +235,7 @@ export default function CheckoutPage() {
                           checked={paymentMethod === "bank"}
                           onChange={() => setPaymentMethod("bank")}
                           className="accent-primary"
+                          disabled={isLoading}
                         />
                         Direct Bank Transfer
                       </label>
@@ -213,7 +250,7 @@ export default function CheckoutPage() {
                       className={`rounded-md border p-4 ${
                         paymentMethod === "cod" ? "border-primary" : ""
                       }`}
-                      onClick={() => setPaymentMethod("cod")}
+                      onClick={() => !isLoading && setPaymentMethod("cod")}
                     >
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -223,6 +260,7 @@ export default function CheckoutPage() {
                           checked={paymentMethod === "cod"}
                           onChange={() => setPaymentMethod("cod")}
                           className="accent-primary"
+                          disabled={isLoading}
                         />
                         Cash On Delivery
                       </label>
@@ -233,16 +271,26 @@ export default function CheckoutPage() {
                       )}
                     </div>
                   </div>
+                  {/* --- KẾT THÚC SỬA LỖI --- */}
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" size="lg">
-                    Place order
+                  {/* Nút Place order */}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    size="lg"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      "Place order"
+                    )}
                   </Button>
                 </CardFooter>
               </Card>
               <p className="mt-4 text-xs text-muted-foreground">
-                Your personal data will be used to support your experience
-                throughout this website...
+                Your personal data will be used...
               </p>
             </div>
           </form>

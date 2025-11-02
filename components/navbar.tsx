@@ -2,40 +2,48 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Menu, Search, ShoppingBag, User } from "lucide-react";
+import {
+  Menu,
+  Search,
+  ShoppingBag,
+  User,
+  ChevronRightIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import CartSheet from "./cart-sheet";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "./ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getAllCategories } from "@/lib/data";
 
 /**
  * @description The main navigation component.
- *
- * @returns {JSX.Element} - The navigation component.
  */
 export default function Navbar() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const allCategories = getAllCategories();
 
   /**
    * Handle search form submission.
-   *
-   * @param {React.FormEvent} e - Event object.
    */
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery) {
-      // Redirect to search results page with query parameter.
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
     }
   };
 
-  // THAY ĐỔI: Cập nhật link 'Home' trỏ đến '/home'
   const routes = [
-    { href: "/home", label: "Home" }, // <-- THAY ĐỔI Ở ĐÂY
+    { href: "/home", label: "Home" },
     { href: "/products", label: "Products" },
-    { href: "/categories", label: "Categories" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
   ];
@@ -43,37 +51,36 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 w-full z-50 bg-white border-b">
       <div className="container mx-auto md:py-6 md:px-8 flex h-16 items-center">
-        {/* Mobile Navigation */}
-        <div className="lg:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] sm:w-[400px]">
-              <SheetTitle className="text-sm text-bold hidden">Menu</SheetTitle>
-              <nav className="flex flex-col gap-4 mt-8 px-12">
-                {routes.map((route) => (
-                  <Link
-                    key={route.href}
-                    href={route.href}
-                    className="text-lg font-medium transition-colors hover:text-primary"
-                  >
-                    {route.label}
-                  </Link>
-                ))}
-              </nav>
-            </SheetContent>
-          </Sheet>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="mr-2">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="start">
+            <DropdownMenuLabel>Shop by Department</DropdownMenuLabel>
+            <DropdownMenuSeparator />
 
-        {/* THAY ĐỔI: Logo trỏ đến '/home' */}
-        <Link
-          className="flex items-center gap-2 ml-4 md:ml-0 md:mr-8"
-          href="/home" // <-- THAY ĐỔI Ở ĐÂY
-        >
+            {allCategories.map((category) => (
+              <DropdownMenuItem
+                asChild
+                key={category.id}
+                className="cursor-pointer"
+              >
+                <Link href={`/categories/${category.slug}`}>
+                  <div className="flex items-center justify-between w-full">
+                    <span>{category.name}</span>
+                    <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Logo */}
+        <Link className="flex items-center gap-2 md:mr-8" href="/home">
           <ShoppingBag className="h-6 w-6" />
           <span className="font-bold text-xl">Store</span>
         </Link>
@@ -116,12 +123,15 @@ export default function Navbar() {
             <Search className="w-5 h-5" />
           </Button>
 
+          {/* User Button */}
           <Button asChild variant="ghost" size="icon">
             <Link href="/">
               <User className="h-5 w-5" />
               <span className="sr-only">Login / User Account</span>
             </Link>
           </Button>
+
+          {/* Cart Sheet */}
           <CartSheet />
         </div>
       </div>

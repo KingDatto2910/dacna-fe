@@ -1,6 +1,6 @@
 "use client";
 
-import { Product } from "@/lib/types";
+import { Product, CartItem } from "@/lib/types";
 import {
   createContext,
   ReactNode,
@@ -9,11 +9,13 @@ import {
   useState,
   useMemo,
 } from "react";
+import { toast } from "sonner";
 
 interface CartContextType {
-  items: Product[];
+  items: CartItem[];
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
+  updateItemQuantity: (productId: string, newQuantity: number) => void;
   clearCart: () => void;
   subtotal: number;
   totalItems: number;
@@ -22,70 +24,93 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<Product[]>([]);
+  const [items, setItems] = useState<CartItem[]>([]);
 
-  // Load cart from localStorage on mount
   useEffect(() => {
-    // Try to load the cart from localStorage
     const cart = localStorage.getItem("cart");
     if (cart) {
-      // If the cart is found, parse it and set it to the state
-      setItems(JSON.parse(cart));
+      try {
+        const parsedItems = JSON.parse(cart);
+
+        if (parsedItems.length > 0 && parsedItems[0].product !== undefined) {
+          // Đây là định dạng mới (CartItem[]), an toàn để load
+          setItems(parsedItems);
+        } else if (parsedItems.length === 0) {
+          // Giỏ hàng rỗng, an toàn để load
+          setItems([]);
+        } else {
+          console.warn("Old cart format detected. Clearing cart.");
+          localStorage.removeItem("cart");
+          setItems([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse cart from localStorage, clearing.", e);
+        localStorage.removeItem("cart"); // Xóa dữ liệu hỏng
+      }
     }
   }, []);
 
-  // Save cart to localStorage when it changes
   useEffect(() => {
     try {
-      // Save the current cart to localStorage
       localStorage.setItem("cart", JSON.stringify(items));
     } catch (error) {
-      // If there's an error, log it to the console
       console.error("Failed to save cart to localStorage:", error);
     }
   }, [items]);
 
   const { totalItems, subtotal } = useMemo(() => {
-    const totalItems = items.length;
-    const subtotal = items.reduce((total, item) => total + item.price, 0);
+    const totalItems = items.reduce((total, item) => total + item.quantity, 0);
+    const subtotal = items.reduce((total, item) => {
+      // Vì chúng ta đã dọn dẹp ở useEffect, 'item.product' ở đây sẽ luôn an toàn
+      const price = item.product.salePrice ?? item.product.price;
+      return total + price * item.quantity;
+    }, 0);
+
     return { totalItems, subtotal };
   }, [items]);
 
-  /**
-   * Adds a product to the cart.
-   *
-   * @param product - The product to add to the cart.
-   */
   const addToCart = (product: Product) => {
-    // Append the new product to the existing items array
-    setItems([...items, product]);
-  };
-
-  /**
-   * Removes a product from the cart by its ID.
-   *
-   * @param productId - The ID of the product to remove.
-   */
-  const removeFromCart = (productId: string) => {
-    setItems((items) => {
-      // Find the index of the product with the given ID
-      const index = items.findIndex((item) => item.id === productId);
-
-      // If the product is in the cart, remove it
-      if (index !== -1) {
-        const newItems = [...items];
-        newItems.splice(index, 1); // Remove the product from the array
-        return newItems; // Return the updated items array
+    setItems((currentItems) => {
+      const existingItemIndex = currentItems.findIndex(
+        (item) => item.product.id === product.id
+      );
+      let newItems: CartItem[];
+      if (existingItemIndex !== -1) {
+        newItems = currentItems.map((item, index) => {
+          if (index === existingItemIndex) {
+            return { ...item, quantity: item.quantity + 1 };
+          }
+          return item;
+        });
+      } else {
+        newItems = [...currentItems, { product: product, quantity: 1 }];
       }
-      return items; // If product not found, return the original items array
+      toast.success(`${product.name} added to cart!`);
+      return newItems;
     });
   };
 
-  /**
-   * Removes all products from the cart.
-   */
+  const updateItemQuantity = (productId: string, newQuantity: number) => {
+    setItems((currentItems) => {
+      if (newQuantity <= 0) {
+        return currentItems.filter((item) => item.product.id !== productId);
+      } else {
+        return currentItems.map((item) =>
+          item.product.id === productId
+            ? { ...item, quantity: newQuantity }
+            : item
+        );
+      }
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setItems((currentItems) => {
+      return currentItems.filter((item) => item.product.id !== productId);
+    });
+  };
+
   const clearCart = () => {
-    // Reset the items array to be empty
     setItems([]);
   };
 
@@ -95,6 +120,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         items,
         addToCart,
         removeFromCart,
+        updateItemQuantity,
         clearCart,
         subtotal,
         totalItems,
@@ -105,11 +131,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Hook to access the cart context.
- *
- * @returns The cart context.
- */
 export function useCart() {
   const context = useContext(CartContext);
   if (context === undefined) {

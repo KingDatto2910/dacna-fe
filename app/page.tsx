@@ -17,23 +17,32 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { verifyUser } from "@/lib/users";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const user = verifyUser(email, password);
-    if (user) {
-      //Might add pop up notification for successful login
-      router.push("/home");
-    } else {
-      setError("Invalid email or password. Please try again.");
-    }
+    setIsLoading(true);
+
+    setTimeout(() => {
+      const user = verifyUser(email, password);
+
+      if (user) {
+        toast.success(`Welcome back, ${user.firstName}!`);
+        router.push("/home");
+      } else {
+        setError("Invalid email or password. Please try again.");
+        setIsLoading(false);
+      }
+    }, 1000); // Giả lập 1 giây
   };
 
   return (
@@ -59,6 +68,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -70,6 +80,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
 
@@ -79,9 +90,14 @@ export default function LoginPage() {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full">
-                Sign In
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Sign In"
+                )}
               </Button>
+
               <div className="text-center text-sm">
                 <Link href="#" className="underline">
                   Forgot your password?
