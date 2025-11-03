@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`antialiased text-sm`}>
+      <body className={`antialiased text-sm bg-muted-500`}>
         <CartProvider>
           {children}
           <Toaster richColors position="top-center" />{" "}

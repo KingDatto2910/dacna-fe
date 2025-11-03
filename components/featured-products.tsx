@@ -1,6 +1,7 @@
+// dacna/components/featured-products.tsx
+
 import { getFeaturedProducts } from "@/lib/data";
 import ProductCard from "./product-card";
-// Import các component Carousel bạn vừa cài đặt
 import {
   Carousel,
   CarouselContent,
@@ -8,44 +9,47 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-/**
- * FeaturedProducts component (Carousel Design)
- */
 function FeaturedProducts() {
-  // Lấy dữ liệu sản phẩm nổi bật
   const featuredProducts = getFeaturedProducts();
 
   return (
-    <section className="w-full py-12">
-      <div className="container mx-auto px-4 py-4 md:py-6 md:px-8">
-        <h2 className="text-2xl font-bold tracking-tight mb-6">
-          Featured Products
-        </h2>
-        <Carousel
-          opts={{
-            align: "start",
-            loop: true,
-          }}
-          className="w-full"
-        >
-          <CarouselContent className="-ml-2">
-            {featuredProducts.map((product) => (
-              <CarouselItem
-                key={product.id}
-                className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6 pl-2"
-              >
-                <div className="p-1 h-full">
-                  {/* Sử dụng ProductCard đã được thu nhỏ */}
-                  <ProductCard product={product} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          {/* Nút trượt qua lại, ẩn trên điện thoại */}
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
-        </Carousel>
+    <section className="w-full">
+      <div className="container mx-auto px-4 md:px-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-tight">
+              Trending Now
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            <Carousel
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+              className="w-full"
+            >
+              <CarouselContent className="-ml-2">
+                {featuredProducts.map((product) => (
+                  <CarouselItem
+                    key={product.id}
+                    className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6 pl-2"
+                  >
+                    <div className="p-1 h-full">
+                      <ProductCard product={product} />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+
+              <CarouselPrevious className="hidden md:flex left-2" />
+              <CarouselNext className="hidden md:flex right-2" />
+            </Carousel>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

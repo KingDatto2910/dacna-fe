@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
  */
 const HeroSection = () => {
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-blue-100">
+    <section className="w-full py-12 md:py-24 lg:py-32 bg-blue-100 rounded-lg overflow-hidden">
       {/* The content container */}
       <div className="flex flex-col items-center gap-4 text-center">
         {/* The heading and paragraph */}

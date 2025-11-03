@@ -30,6 +30,38 @@ const products: Product[] = [
       level: "in-stock",
       storeAddress: "123 Main St, Ho Chi Minh City",
     },
+    reviews: [
+      {
+        id: "r1",
+        rating: 5,
+        title: "A solid workhorse at a good price.",
+        author: "PhillipG",
+        date: "October 26, 2025",
+        comment:
+          "My Mom was in need of a new TV for her office... Overall, she will spend most of her time hooked up to a dock, so battery life wasn't a huge concern.",
+        isVerified: true,
+      },
+      {
+        id: "r2",
+        rating: 5,
+        title: "Great quality from a great Company (& Store)!",
+        author: "Verified Purchaser",
+        date: "October 22, 2025",
+        comment:
+          "This is one of the finest TVs I have ever had. Dell is a great brand, and is known for its build quality and dependability. I do believe this one will last.",
+        isVerified: true,
+      },
+      {
+        id: "r3",
+        rating: 4,
+        title: "Good, but not perfect",
+        author: "JaneD",
+        date: "October 20, 2025",
+        comment:
+          "The screen is beautiful, but the speakers are a bit weak. Had to buy a soundbar. 4 stars.",
+        isVerified: true,
+      },
+    ],
   },
   {
     id: "2",

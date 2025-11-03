@@ -1,6 +1,5 @@
 import { getAllCategories } from "@/lib/data";
 import CategoryCard from "./category-card";
-// Import các component Carousel
 import {
   Carousel,
   CarouselContent,
@@ -8,20 +7,21 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+// Import Card
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-/**
- * The Categories component
- */
 function Categories() {
   const categories = getAllCategories();
 
   return (
-    <section className="w-full">
-      <div className="container mx-auto px-4 py-4 md:py-6 md:px-8">
-        <h2 className="text-2xl font-bold tracking-tight mb-6">
+    // Bọc trong Card
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold tracking-tight mb-0">
           Shop by Category
-        </h2>
-
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
         <Carousel
           opts={{
             align: "start",
@@ -30,7 +30,6 @@ function Categories() {
         >
           <CarouselContent className="-ml-2">
             {categories.map((category) => (
-              // Ép các Card nhỏ lại, 8-10 card một hàng
               <CarouselItem
                 key={category.id}
                 className="basis-1/3 sm:basis-1/4 md:basis-1/6 lg:basis-1/8 xl:basis-1/10 pl-2"
@@ -41,11 +40,11 @@ function Categories() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="hidden md:flex" />
-          <CarouselNext className="hidden md:flex" />
+          <CarouselPrevious className="hidden md:flex left-2" />
+          <CarouselNext className="hidden md:flex right-2" />
         </Carousel>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
 

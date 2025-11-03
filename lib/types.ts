@@ -6,7 +6,15 @@ export interface StockInfo {
   level: "in-stock" | "low-stock" | "out-of-stock";
   storeAddress: string;
 }
-
+export interface Review {
+  id: string;
+  rating: number;
+  title: string;
+  author: string;
+  date: string;
+  comment: string;
+  isVerified: boolean;
+}
 export interface Product {
   id: string;
   name: string;
@@ -23,6 +31,7 @@ export interface Product {
   model?: string;
   specifications?: Specification[];
   stock?: StockInfo;
+  reviews?: Review[];
 }
 
 export interface Category {

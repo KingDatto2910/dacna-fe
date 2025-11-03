@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/carousel";
 import ProductCard from "@/components/product-card";
 import Breadcrumbs from "@/components/breadcrumbs";
+import ProductReviews from "@/components/product-reviews";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -38,10 +39,12 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // State riêng cho các nút
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
 
+  // Hook "Recently Viewed"
   const { recentlyViewedProducts } = useRecentlyViewed(product);
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export default function ProductDetailPage() {
 
       if (fetchedProduct) {
         setProduct(fetchedProduct);
+        // Lấy sản phẩm liên quan
         const related = getRelatedProducts(
           fetchedProduct.id,
           fetchedProduct.category
@@ -61,6 +65,9 @@ export default function ProductDetailPage() {
     }
   }, [params.id]);
 
+  // --- KHỐI KIỂM TRA "NULL" (Rất quan trọng) ---
+
+  // 1. Khi đang tải
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -73,6 +80,7 @@ export default function ProductDetailPage() {
     );
   }
 
+  // 2. Khi tải xong nhưng không tìm thấy
   if (!product) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -84,7 +92,9 @@ export default function ProductDetailPage() {
       </div>
     );
   }
+  // --- KẾT THÚC KHỐI KIỂM TRA ---
 
+  // Các hàm xử lý (đã kiểm tra 'null')
   const handleAddToCart = () => {
     if (!product) return;
     setIsCartLoading(true);
@@ -111,6 +121,7 @@ export default function ProductDetailPage() {
     }, 800);
   };
 
+  // Các biến này được định nghĩa SAU khi kiểm tra 'null'
   const displayPrice = product.salePrice ?? product.price;
   const filteredRecentlyViewed = recentlyViewedProducts.filter(
     (p) => p.id !== product.id
@@ -121,14 +132,17 @@ export default function ProductDetailPage() {
       <Navbar />
 
       <div className="container mx-auto px-4 py-12 flex-1">
+        {/* Breadcrumbs (Đường dẫn) */}
         <Breadcrumbs />
 
+        {/* Lưới 2 cột (Ảnh + Thông tin) */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 lg:gap-12">
-          {/* Cột 1: Gallery */}
+          {/* CỘT 1: THƯ VIỆN ẢNH */}
           <div className="md:col-span-3">
             <ProductGallery product={product} />
           </div>
-          {/* Cột 2: Thông tin */}
+
+          {/* CỘT 2: THÔNG TIN */}
           <div className="md:col-span-2 space-y-5">
             <h1 className="text-3xl font-bold">{product.name}</h1>
 
@@ -163,7 +177,7 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* Khối Nút Bấm */}
+            {/* Khối Nút Bấm (Đã sửa logic 'disabled') */}
             <div className="space-y-3">
               <div className="flex gap-3">
                 <Button
@@ -279,10 +293,21 @@ export default function ProductDetailPage() {
                 </p>
               </AccordionContent>
             </AccordionItem>
+
+            {/* Reviews (Đánh giá) */}
+            <AccordionItem value="item-3">
+              <AccordionTrigger className="text-xl font-semibold">
+                Reviews
+              </AccordionTrigger>
+              <AccordionContent>
+                {/* Component 'ProductReviews' sẽ được thêm vào đây */}
+                <ProductReviews product={product} />
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         </div>
 
-        {/* Kệ hàng "Related Items" */}
+        {/* Kệ hàng "Related Items" (Đã sửa lỗi Key) */}
         {relatedProducts.length > 0 && (
           <div className="mt-16 border-t pt-8">
             <h2 className="text-2xl font-bold tracking-tight mb-6">
@@ -298,7 +323,7 @@ export default function ProductDetailPage() {
               <CarouselContent className="-ml-2">
                 {relatedProducts.map((relatedProd) => (
                   <CarouselItem
-                    key={`related-${relatedProd.id}`}
+                    key={`related-${relatedProd.id}`} // Sửa Key
                     className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6 pl-2"
                   >
                     <div className="p-1 h-full">
@@ -313,7 +338,7 @@ export default function ProductDetailPage() {
           </div>
         )}
 
-        {/* Kệ hàng "Recently Viewed" */}
+        {/* Kệ hàng "Recently Viewed" (Đã sửa lỗi Key) */}
         {filteredRecentlyViewed.length > 0 && (
           <div className="mt-16 border-t pt-8">
             <h2 className="text-2xl font-bold tracking-tight mb-6">
@@ -328,7 +353,7 @@ export default function ProductDetailPage() {
               <CarouselContent className="-ml-2">
                 {filteredRecentlyViewed.map((viewedProd) => (
                   <CarouselItem
-                    key={`viewed-${viewedProd.id}`}
+                    key={`viewed-${viewedProd.id}`} // Sửa Key
                     className="basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6 pl-2"
                   >
                     <div className="p-1 h-full">
