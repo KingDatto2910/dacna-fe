@@ -45,27 +45,46 @@ async function fetchApiWithToken<T>(
       ...options,
       headers: {
         "Content-Type": "application/json",
-        // Đây là mấu chốt để backend xác thực bạn
         Authorization: `Bearer ${token}`,
         ...options.headers,
       },
     });
 
-    // Xử lý 401 riêng để FE có thể fallback sang chế độ guest
-    if (response.status === 401) {
+    // Centralized auth failure handling
+    if (response.status === 401 || response.status === 403) {
+      const body = await safeJson(response);
+      const msg: string = body?.message || body?.error || "UNAUTHORIZED";
+      // Provide normalized error messages for upstream handling
+      if (/expired/i.test(msg)) {
+        // Dispatch global event to trigger logout
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth:logout", { detail: "TOKEN_EXPIRED" }));
+        }
+        throw new Error("TOKEN_EXPIRED");
+      }
+      // Dispatch global event for any unauthorized error
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:logout", { detail: "UNAUTHORIZED" }));
+      }
       throw new Error("UNAUTHORIZED");
     }
 
-    const data = await response.json();
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.message || data.error || "API request failed");
+    const data = await safeJson(response);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || data?.error || "API request failed");
     }
-    // Backend trả về { ok: true, data: ... }
-    return data.data; // Chỉ trả về phần data
+    return data.data as T;
   } catch (err: any) {
     console.error(`API Error (Token) at ${path}:`, err);
     throw new Error(err.message || "API Network Error");
+  }
+}
+
+async function safeJson(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
   }
 }
 

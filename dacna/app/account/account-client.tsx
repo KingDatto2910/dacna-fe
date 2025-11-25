@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, User, ShoppingBag, Settings } from "lucide-react";
+import { Loader2, LogOut, User, ShoppingBag, Heart } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -15,7 +15,7 @@ import {
   CardFooter,
   CardDescription,
 } from "@/components/ui/card";
-import { toast } from "sonner";
+// import { toast } from "sonner";
 
 /**
  * Client Component (Được bảo vệ)
@@ -30,7 +30,13 @@ export default function AccountClient() {
     if (!isLoading && !isAuthenticated) {
       router.push("/");
     }
-  }, [isLoading, isAuthenticated, router]);
+    // Redirect admin/staff to admin panel
+    if (!isLoading && isAuthenticated && user) {
+      if (user.role === "admin" || user.role === "staff") {
+        router.push("/admin");
+      }
+    }
+  }, [isLoading, isAuthenticated, user, router]);
 
   // ---- CÁC TRẠNG THÁI RENDER ----
 
@@ -100,6 +106,24 @@ export default function AccountClient() {
                       <h3 className="font-semibold">My Orders</h3>
                       <p className="text-sm text-muted-foreground">
                         View your order history and track purchases
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+
+            <Link href="/account/favorites">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <Heart className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">My Favorites</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Quickly access products you've saved
                       </p>
                     </div>
                   </div>

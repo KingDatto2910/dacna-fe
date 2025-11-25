@@ -131,17 +131,17 @@ function OrderDetailModal({
           <div className="border-t pt-4 space-y-2">
             <div className="flex justify-between">
               <p>Subtotal</p>
-              <p className="font-medium">₫{order.subtotal.toLocaleString()}</p>
+              <p className="font-medium">${Number(order.subtotal).toFixed(2)}</p>
             </div>
             <div className="flex justify-between">
               <p>Shipping Fee</p>
               <p className="font-medium">
-                ₫{order.shipping_fee.toLocaleString()}
+                ${Number(order.shipping_fee).toFixed(2)}
               </p>
             </div>
             <div className="flex justify-between text-lg font-bold border-t pt-2">
               <p>Total</p>
-              <p>₫{order.grand_total.toLocaleString()}</p>
+              <p>${Number(order.grand_total).toFixed(2)}</p>
             </div>
           </div>
         </CardContent>
@@ -248,7 +248,7 @@ function OrdersClient() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-lg text-muted-foreground mb-4">
-              You haven't placed any orders yet.
+              You have not placed any orders yet.
             </p>
             <Button asChild>
               <Link href="/products">Start Shopping</Link>

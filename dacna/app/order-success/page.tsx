@@ -104,10 +104,10 @@ export default function OrderSuccessPage() {
               <div className="flex justify-center mb-4">
                 <CheckCircle2 className="h-20 w-20 text-green-500" />
               </div>
-              <h1 className="text-3xl font-bold mb-2">Đặt hàng thành công!</h1>
+              <h1 className="text-3xl font-bold mb-2">Order Successful!</h1>
               <p className="text-muted-foreground">
-                Cảm ơn bạn đã mua sắm. Chúng tôi đã nhận được đơn hàng và sẽ xử
-                lý sớm.
+                Thank you for your purchase. We have received your order and
+                will process it shortly.
               </p>
             </div>
 
@@ -116,21 +116,21 @@ export default function OrderSuccessPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  Thông tin đơn hàng
+                  Order details
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Mã đơn hàng</p>
+                    <p className="text-muted-foreground">Order code</p>
                     <p className="font-semibold text-lg">{code}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Ngày đặt</p>
+                    <p className="text-muted-foreground">Order date</p>
                     <p className="font-medium">
                       {orderDetails?.created_at
                         ? new Date(orderDetails.created_at).toLocaleDateString(
-                            "vi-VN",
+                            undefined,
                             {
                               year: "numeric",
                               month: "long",
@@ -141,22 +141,20 @@ export default function OrderSuccessPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">
-                      Phương thức thanh toán
-                    </p>
+                    <p className="text-muted-foreground">Payment method</p>
                     <p className="font-medium capitalize">
                       {orderDetails?.payment_method === "cod"
-                        ? "Thanh toán khi nhận hàng"
+                        ? "Cash on delivery"
                         : orderDetails?.payment_method === "card"
-                        ? "Chuyển khoản ngân hàng"
+                        ? "Bank transfer"
                         : "N/A"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Trạng thái</p>
+                    <p className="text-muted-foreground">Status</p>
                     <p className="font-medium capitalize">
                       {orderDetails?.order_status?.replace(/_/g, " ") ||
-                        "Đang xử lý"}
+                        "Processing"}
                     </p>
                   </div>
                 </div>
@@ -166,7 +164,7 @@ export default function OrderSuccessPage() {
                 {/* Shipping Address */}
                 <div>
                   <p className="text-muted-foreground text-sm mb-2">
-                    Địa chỉ giao hàng
+                    Shipping address
                   </p>
                   <p className="font-medium">
                     {orderDetails?.address_street}
@@ -185,7 +183,7 @@ export default function OrderSuccessPage() {
                 {orderDetails?.items && orderDetails.items.length > 0 && (
                   <div>
                     <p className="text-muted-foreground text-sm mb-3">
-                      Sản phẩm
+                      Products
                     </p>
                     <div className="space-y-2">
                       {orderDetails.items.map((item) => (
@@ -198,11 +196,11 @@ export default function OrderSuccessPage() {
                               {item.item_name_snapshot}
                             </p>
                             <p className="text-muted-foreground">
-                              ₫{item.unit_price.toLocaleString()} x {item.qty}
+                              ${Number(item.unit_price).toFixed(2)} x {item.qty}
                             </p>
                           </div>
                           <p className="font-semibold">
-                            ₫{item.amount.toLocaleString()}
+                            ${Number(item.amount).toFixed(2)}
                           </p>
                         </div>
                       ))}
@@ -215,29 +213,27 @@ export default function OrderSuccessPage() {
                 {/* Order Summary */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tạm tính</span>
+                    <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium">
-                      ₫{(orderDetails?.subtotal || 0).toLocaleString()}
+                      ${Number(orderDetails?.subtotal || 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Phí vận chuyển
-                    </span>
+                    <span className="text-muted-foreground">Shipping fee</span>
                     <span className="font-medium">
-                      ₫{(orderDetails?.shipping_fee || 0).toLocaleString()}
+                      ${Number(orderDetails?.shipping_fee || 0).toFixed(2)}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex justify-between text-lg font-bold">
-                    <span>Tổng cộng</span>
+                    <span>Total</span>
                     <span className="text-primary">
-                      ₫
-                      {(
-                        orderDetails?.grand_total ||
+                      $
+                      {
+                        Number(orderDetails?.grand_total ||
                         Number(total) ||
-                        0
-                      ).toLocaleString()}
+                        0).toFixed(2)
+                      }
                     </span>
                   </div>
                 </div>
@@ -261,10 +257,10 @@ export default function OrderSuccessPage() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
               <Button asChild className="flex-1" size="lg">
-                <Link href="/products">Tiếp tục mua sắm</Link>
+                <Link href="/products">Continue shopping</Link>
               </Button>
               <Button asChild variant="outline" className="flex-1" size="lg">
-                <Link href="/">Về trang chủ</Link>
+                <Link href="/">Back to home</Link>
               </Button>
             </div>
           </div>

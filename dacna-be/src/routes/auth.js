@@ -4,6 +4,7 @@ import {
   register,
   login,
   getCurrentUser,
+  debugGetAllUsers,
 } from "../controllers/authController.js";
 import { authMiddleware } from "../middlewares/auth.js";
 
@@ -45,6 +46,9 @@ router.post("/login", login);
 
 // Lấy thông tin user hiện tại
 router.get("/me", authMiddleware, getCurrentUser);
+
+// DEBUG: Get all users from database
+router.get("/debug/users", debugGetAllUsers);
 
 // Đăng nhập thất bại
 router.get("/login/failed", (req, res) => {

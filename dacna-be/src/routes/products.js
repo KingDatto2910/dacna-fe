@@ -5,11 +5,44 @@ import {
   createReview,
   updateReview,
   deleteReview,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  updateProductStock,
 } from "../controllers/productController.js";
-import { authMiddleware } from "../middlewares/auth.js";
+import { authMiddleware, roleMiddleware } from "../middlewares/auth.js";
 
 const router = Router();
 
+// ========== ADMIN ROUTES ==========
+// POST http://localhost:5000/api/products/admin (admin only)
+router.post("/admin", authMiddleware, roleMiddleware(["admin"]), createProduct);
+
+// PATCH http://localhost:5000/api/products/admin/:id (admin only)
+router.patch(
+  "/admin/:id",
+  authMiddleware,
+  roleMiddleware(["admin"]),
+  updateProduct
+);
+
+// DELETE http://localhost:5000/api/products/admin/:id (admin only)
+router.delete(
+  "/admin/:id",
+  authMiddleware,
+  roleMiddleware(["admin"]),
+  deleteProduct
+);
+
+// PATCH http://localhost:5000/api/products/admin/:id/stock (admin & staff)
+router.patch(
+  "/admin/:id/stock",
+  authMiddleware,
+  roleMiddleware(["admin", "staff"]),
+  updateProductStock
+);
+
+// ========== PUBLIC ROUTES ==========
 // GET http://localhost:5000/api/products
 // GET http://localhost:5000/api/products?category_slug=...
 router.get("/", listProducts);
@@ -25,9 +58,5 @@ router.patch("/:productId/reviews/:reviewId", authMiddleware, updateReview);
 
 // DELETE http://localhost:5000/api/products/:productId/reviews/:reviewId (requires authentication)
 router.delete("/:productId/reviews/:reviewId", authMiddleware, deleteReview);
-
-// Xóa các route POST và PATCH cũ
-// router.post("/", authMiddleware, roleMiddleware(["admin", "staff"]), create);
-// router.patch("/:id/active", authMiddleware, roleMiddleware(["admin"]), setActive);
 
 export default router;

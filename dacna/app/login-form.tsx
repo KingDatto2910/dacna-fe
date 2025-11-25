@@ -23,19 +23,24 @@ import { useAuth } from "@/hooks/use-auth";
  * Chức năng: Xử lý đăng nhập và tự động redirect nếu đã authenticated
  */
 export default function LoginForm() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, user } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Redirect to home if already authenticated
+  // Redirect by role if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/home");
+      const role = user?.role;
+      if (role === "admin" || role === "staff") {
+        router.push("/admin");
+      } else {
+        router.push("/home");
+      }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, user?.role, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

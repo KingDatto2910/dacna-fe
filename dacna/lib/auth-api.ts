@@ -11,7 +11,7 @@ const API_URL = "http://localhost:5000"; // Địa chỉ Backend
 interface LoginResponse {
   token: string;
   user: AuthUser;
-}
+} //Give the token and user info when login success
 
 /**
  * Hàm POST API cơ sở (khác với fetchApi GET)

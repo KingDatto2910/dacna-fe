@@ -9,6 +9,7 @@ import {
   useState,
   useMemo,
   useCallback,
+  useRef,
 } from "react";
 import { toast } from "sonner";
 
@@ -22,7 +23,7 @@ import {
 } from "@/lib/cart-api";
 
 interface CartContextType {
-  items: CartItem[];
+  items: CartItem[]; //Products item in cart
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateItemQuantity: (productId: string, newQuantity: number) => void;
@@ -32,20 +33,20 @@ interface CartContextType {
   isLoading: boolean; // Cờ báo đang tải giỏ hàng
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
-const initialCartState: CartItem[] = [];
+const CartContext = createContext<CartContextType | undefined>(undefined); //Intial context
+const initialCartState: CartItem[] = []; //Empty cart initial state
 
 /**
- * 2. HÀM CHUYỂN ĐỔI (QUAN TRỌNG)
+ * 2. Transition Function
  * Biến dữ liệu thô từ CSDL (DbCartItem) thành dữ liệu FE (CartItem)
  */
 function convertDbItemToFeItem(dbItem: DbCartItem): CartItem {
-  // "Tạo giả" một đối tượng Product từ thông tin DB
+  //  "Tạo giả" một đối tượng Product từ thông tin DB
   const product: Product = {
     id: dbItem.product_id.toString(),
     name: dbItem.name,
     // Dùng unit_price (giá tại thời điểm mua) làm giá gốc
-    price: parseFloat(dbItem.unit_price as any),
+    price: parseFloat(String(dbItem.unit_price)),
     images: [dbItem.image_url || "/placeholder.svg"], // Lấy ảnh
 
     // Các trường này không quá quan trọng trong giỏ hàng
@@ -70,13 +71,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(initialCartState);
   const [dbCartId, setDbCartId] = useState<number | null>(null); // State chứa Order ID
   const [isLoading, setIsLoading] = useState(true);
+  const isLoadingCartRef = useRef(false); // Prevent concurrent loads with ref
 
   /**
-   * 4. HÀM TẢI GIỎ HÀNG (Logic Chuyển đổi Ngữ cảnh)
+   * 4. HÀM TẢI GIỏ HÀNG (Logic Chuyển đổi Ngữ cảnh)
    */
   const loadCart = useCallback(async () => {
+    // Prevent concurrent cart loads
+    if (isLoadingCartRef.current) {
+      console.log("Cart load already in progress, skipping...");
+      return;
+    }
+
+    isLoadingCartRef.current = true;
     setIsLoading(true);
-    setItems([]); // Xóa giỏ hàng cũ ngay lập tức
 
     try {
       if (isAuthenticated && token) {
@@ -93,18 +101,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setItems(cart ? JSON.parse(cart) : []);
         setDbCartId(null); // Không có ID giỏ hàng CSDL
       }
-    } catch (error: any) {
-      // Nếu Unauthorized thì fallback sang guest, không hiện toast
-      if (error?.message === "UNAUTHORIZED") {
-        const cart = localStorage.getItem("cart");
-        setItems(cart ? JSON.parse(cart) : []);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // If token expired or unauthorized, the global event handler will log out
+      // Just clear the cart and let the auth hook handle the rest
+      if (errorMessage === "UNAUTHORIZED" || errorMessage === "TOKEN_EXPIRED") {
+        console.warn("Auth error detected, clearing cart...");
+        setItems([]);
         setDbCartId(null);
       } else {
-        toast.error(`Failed to load cart: ${error.message}`);
+        // Other errors (like cart not found) - reset and clear
+        console.warn("Cart load error, resetting:", errorMessage);
         setItems([]);
+        setDbCartId(null);
       }
     } finally {
       setIsLoading(false);
+      isLoadingCartRef.current = false;
     }
   }, [isAuthenticated, token]); // <--- Chạy lại khi Đăng nhập/Đăng xuất
 
@@ -145,8 +158,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
             : [...prev, { product, quantity: 1 }]
         );
         toast.success(`${product.name} added to cart!`);
-      } catch (error: any) {
-        toast.error(`Failed to add item: ${error.message}`);
+      } catch (error: unknown) {
+        // If cart not found, reload to recreate it
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+          await loadCart();
+          // Retry the operation
+          try {
+            const freshCart = await apiGetMyCart(token);
+            await apiUpsertCartItem(token, freshCart.id, product.id, newQty);
+            await loadCart();
+            toast.success(`${product.name} added to cart!`);
+          } catch (retryError: unknown) {
+            const retryErrorMessage = retryError instanceof Error ? retryError.message : String(retryError);
+            toast.error(`Failed to add item: ${retryErrorMessage}`);
+          }
+        } else {
+          toast.error(`Failed to add item: ${errorMessage}`);
+        }
       }
     } else {
       // === LUỒNG LOCALSTORAGE (KHÁCH) ===
@@ -185,8 +214,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
             )
           );
         }
-      } catch (error: any) {
-        toast.error(`Failed to update quantity: ${error.message}`);
+      } catch (error: unknown) {
+        // If cart not found, reload to recreate it
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+          await loadCart();
+          toast.info("Cart refreshed, please try again");
+        } else {
+          toast.error(`Failed to update quantity: ${errorMessage}`);
+        }
       }
     } else {
       // === LUỒNG LOCALSTORAGE (KHÁCH) ===
@@ -214,8 +250,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setItems((prev) =>
           prev.filter((item) => item.product.id !== productId)
         );
-      } catch (error: any) {
-        toast.error(`Failed to remove item: ${error.message}`);
+      } catch (error: unknown) {
+        // If cart not found, reload to recreate it
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+          await loadCart();
+          toast.info("Cart refreshed");
+        } else {
+          toast.error(`Failed to remove item: ${errorMessage}`);
+        }
       }
     } else {
       // === LUỒNG LOCALSTORAGE (KHÁCH) ===

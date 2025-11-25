@@ -20,7 +20,7 @@ export async function list(options = {}) {
   // Base query with JOINs for categories and thumbnail
   let sql = `
     SELECT
-      p.id, p.sku, p.name, p.model, p.price, p.sale_price,
+      p.id, p.sku, p.name, p.model, p.price, p.sale_price, p.stock_qty,
       p.is_trending, p.is_bestseller, p.average_rating, p.review_count,
       c.name AS category_name, c.slug AS category_slug,
       sc.name AS sub_category_name, sc.slug AS sub_category_slug,

@@ -17,6 +17,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Heart, MapPin, Loader2 } from "lucide-react";
+import { useFavorites } from "@/hooks/use-favorites";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -50,6 +51,7 @@ export default function ProductDetailClient({
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [isBuyNowLoading, setIsBuyNowLoading] = useState(false);
   const [isSaveLoading, setIsSaveLoading] = useState(false);
+  const { toggleFavorite, isFavorited } = useFavorites();
 
   // Hook "Recently Viewed" (Giữ nguyên)
   const { recentlyViewedProducts } = useRecentlyViewed(product);
@@ -69,10 +71,7 @@ export default function ProductDetailClient({
   const handleSave = () => {
     if (!product) return;
     setIsSaveLoading(true);
-    toast.success(`${product.name} saved to favorites!`);
-    setTimeout(() => {
-      setIsSaveLoading(false);
-    }, 500);
+    toggleFavorite(Number(product.id)).finally(() => setIsSaveLoading(false));
   };
   const handleBuyNow = () => {
     if (!product) return;
@@ -159,9 +158,9 @@ export default function ProductDetailClient({
                 {isSaveLoading ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
-                  <Heart className="mr-2 h-5 w-5" />
+                  <Heart className={`mr-2 h-5 w-5 ${isFavorited(Number(product.id)) ? 'fill-red-500 text-red-500' : ''}`} />
                 )}
-                {isSaveLoading ? "Saving..." : "Save"}
+                {isSaveLoading ? "Saving..." : isFavorited(Number(product.id)) ? 'Saved' : 'Save'}
               </Button>
             </div>
             <Button

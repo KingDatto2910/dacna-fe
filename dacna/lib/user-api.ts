@@ -68,18 +68,27 @@ async function fetchApiWithToken<T>(
       },
     });
 
-    const data = await response.json();
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.message || data.error || "API request failed");
+    if (response.status === 401 || response.status === 403) {
+      const body = await safeJson(response);
+      const msg = body?.message || body?.error || "UNAUTHORIZED";
+      if (/expired/i.test(msg)) {
+        throw new Error("TOKEN_EXPIRED");
+      }
+      throw new Error("UNAUTHORIZED");
     }
 
-    return data.data;
+    const data = await safeJson(response);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || data?.error || "API request failed");
+    }
+    return data.data as T;
   } catch (err: any) {
     console.error(`API Error (Token) at ${path}:`, err);
     throw new Error(err.message || "API Network Error");
   }
 }
+
+async function safeJson(res: Response) { try { return await res.json(); } catch { return null; } }
 
 /**
  * Lấy thông tin user hiện tại

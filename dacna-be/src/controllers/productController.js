@@ -1,4 +1,5 @@
 import * as productModel from "../models/productModel.js";
+import { pool } from "../db.js";
 
 /**
  * List products with filters and sorting
@@ -53,7 +54,15 @@ export async function listProducts(req, res, next) {
       // Fields required by FE but not in list query
       description: "",
       specifications: [],
-      stock: { level: "in-stock", storeAddress: "" },
+      stock: {
+        level:
+          p.stock_qty > 10
+            ? "in-stock"
+            : p.stock_qty > 0
+            ? "low-stock"
+            : "out-of-stock",
+        storeAddress: "",
+      },
       reviews: [],
     }));
 
@@ -89,6 +98,8 @@ export async function getProductDetails(req, res, next) {
       categorySlug: data.category_slug,
       subCategory: data.sub_category_name || undefined,
       subCategorySlug: data.sub_category_slug || undefined,
+      category_id: data.category_id ?? null,
+      sub_category_id: data.sub_category_id ?? null,
       rating: parseFloat(data.average_rating),
       reviewCount: data.review_count,
       isBestSeller: data.is_bestseller === 1,
@@ -280,3 +291,304 @@ export async function deleteReview(req, res, next) {
     next(err);
   }
 }
+
+/* ========== ADMIN FUNCTIONS ========== */
+
+/**
+ * [POST] /api/products/admin
+ * Create a new product (admin only)
+ */
+export async function createProduct(req, res, next) {
+  try {
+    const {
+      sku,
+      name,
+      model,
+      description,
+      price,
+      sale_price,
+      category_id,
+      sub_category_id,
+      stock_qty,
+      is_trending,
+      is_bestseller,
+      specifications,
+      images,
+    } = req.body;
+
+    // Validation
+    if (!sku || !name || !price || !category_id) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing required fields: sku, name, price, category_id",
+      });
+    }
+
+    // Insert product
+    const [result] = await pool.execute(
+      `INSERT INTO products 
+       (sku, name, model, description, price, sale_price, category_id, sub_category_id, 
+        stock_qty, is_trending, is_bestseller) 
+       VALUES (:sku, :name, :model, :description, :price, :sale_price, :category_id, 
+               :sub_category_id, :stock_qty, :is_trending, :is_bestseller)`,
+      {
+        sku,
+        name,
+        model: model || null,
+        description: description || null,
+        price,
+        sale_price: sale_price || null,
+        category_id,
+        sub_category_id: sub_category_id || null,
+        stock_qty: stock_qty || 0,
+        is_trending: is_trending ? 1 : 0,
+        is_bestseller: is_bestseller ? 1 : 0,
+      }
+    );
+
+    const productId = result.insertId;
+
+    // Insert specifications if provided
+    if (specifications && Array.isArray(specifications)) {
+      for (const spec of specifications) {
+        await pool.execute(
+          `INSERT INTO product_specifications (product_id, spec_key, spec_value) 
+           VALUES (:product_id, :spec_key, :spec_value)`,
+          {
+            product_id: productId,
+            spec_key: spec.key,
+            spec_value: spec.value,
+          }
+        );
+      }
+    }
+
+    // Insert images if provided
+    if (images && Array.isArray(images)) {
+      for (let i = 0; i < images.length; i++) {
+        await pool.execute(
+          `INSERT INTO product_images (product_id, image_url, is_thumbnail, display_order) 
+           VALUES (:product_id, :image_url, :is_thumbnail, :display_order)`,
+          {
+            product_id: productId,
+            image_url: images[i],
+            is_thumbnail: i === 0 ? 1 : 0,
+            display_order: i,
+          }
+        );
+      }
+    }
+
+    res.status(201).json({
+      ok: true,
+      message: "Product created successfully",
+      data: { productId },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * [PATCH] /api/products/admin/:id
+ * Update a product (admin only)
+ */
+export async function updateProduct(req, res, next) {
+  try {
+    const { id } = req.params;
+    const {
+      sku,
+      name,
+      model,
+      description,
+      price,
+      sale_price,
+      category_id,
+      sub_category_id,
+      stock_qty,
+      is_trending,
+      is_bestseller,
+      specifications,
+      images,
+    } = req.body;
+
+    // Check if product exists
+    const [rows] = await pool.execute(
+      `SELECT id FROM products WHERE id = :id`,
+      { id }
+    );
+    if (rows.length === 0) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Product not found" });
+    }
+
+    // Build dynamic update query
+    const updates = [];
+    const params = { id };
+
+    if (sku !== undefined) {
+      updates.push("sku = :sku");
+      params.sku = sku;
+    }
+    if (name !== undefined) {
+      updates.push("name = :name");
+      params.name = name;
+    }
+    if (model !== undefined) {
+      updates.push("model = :model");
+      params.model = model;
+    }
+    if (description !== undefined) {
+      updates.push("description = :description");
+      params.description = description;
+    }
+    if (price !== undefined) {
+      updates.push("price = :price");
+      params.price = price;
+    }
+    if (sale_price !== undefined) {
+      updates.push("sale_price = :sale_price");
+      params.sale_price = sale_price;
+    }
+    if (category_id !== undefined) {
+      updates.push("category_id = :category_id");
+      params.category_id = category_id;
+    }
+    if (sub_category_id !== undefined) {
+      updates.push("sub_category_id = :sub_category_id");
+      params.sub_category_id = sub_category_id;
+    }
+    if (stock_qty !== undefined) {
+      updates.push("stock_qty = :stock_qty");
+      params.stock_qty = stock_qty;
+    }
+    if (is_trending !== undefined) {
+      updates.push("is_trending = :is_trending");
+      params.is_trending = is_trending ? 1 : 0;
+    }
+    if (is_bestseller !== undefined) {
+      updates.push("is_bestseller = :is_bestseller");
+      params.is_bestseller = is_bestseller ? 1 : 0;
+    }
+
+    if (updates.length > 0) {
+      await pool.execute(
+        `UPDATE products SET ${updates.join(", ")} WHERE id = :id`,
+        params
+      );
+    }
+
+    // Update specifications if provided
+    if (specifications && Array.isArray(specifications)) {
+      // Delete old specs
+      await pool.execute(
+        `DELETE FROM product_specifications WHERE product_id = :id`,
+        { id }
+      );
+      // Insert new specs
+      for (const spec of specifications) {
+        await pool.execute(
+          `INSERT INTO product_specifications (product_id, spec_key, spec_value) 
+           VALUES (:product_id, :spec_key, :spec_value)`,
+          { product_id: id, spec_key: spec.key, spec_value: spec.value }
+        );
+      }
+    }
+
+    // Update images if provided
+    if (images && Array.isArray(images)) {
+      // Delete old images
+      await pool.execute(`DELETE FROM product_images WHERE product_id = :id`, {
+        id,
+      });
+      // Insert new images
+      for (let i = 0; i < images.length; i++) {
+        await pool.execute(
+          `INSERT INTO product_images (product_id, image_url, is_thumbnail, display_order) 
+           VALUES (:product_id, :image_url, :is_thumbnail, :display_order)`,
+          {
+            product_id: id,
+            image_url: images[i],
+            is_thumbnail: i === 0 ? 1 : 0,
+            display_order: i,
+          }
+        );
+      }
+    }
+
+    res.json({ ok: true, message: "Product updated successfully" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * [DELETE] /api/products/admin/:id
+ * Delete a product (admin only)
+ */
+export async function deleteProduct(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Check if product exists
+    const [rows] = await pool.execute(
+      `SELECT id FROM products WHERE id = :id`,
+      { id }
+    );
+    if (rows.length === 0) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Product not found" });
+    }
+
+    // Delete related data (cascade will handle most, but explicit for clarity)
+    await pool.execute(`DELETE FROM product_images WHERE product_id = :id`, {
+      id,
+    });
+    await pool.execute(
+      `DELETE FROM product_specifications WHERE product_id = :id`,
+      { id }
+    );
+    await pool.execute(`DELETE FROM reviews WHERE product_id = :id`, { id });
+    await pool.execute(`DELETE FROM products WHERE id = :id`, { id });
+
+    res.json({ ok: true, message: "Product deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * [PATCH] /api/products/admin/:id/stock
+ * Update product stock (admin & staff)
+ */
+export async function updateProductStock(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { stock_qty } = req.body;
+
+    if (stock_qty === undefined || stock_qty < 0) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid stock_qty (must be >= 0)",
+      });
+    }
+
+    const [result] = await pool.execute(
+      `UPDATE products SET stock_qty = :stock_qty WHERE id = :id`,
+      { id, stock_qty }
+    );
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ ok: false, message: "Product not found" });
+    }
+
+    res.json({ ok: true, message: "Stock updated successfully" });
+  } catch (err) {
+    next(err);
+  }
+}
+

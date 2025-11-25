@@ -114,24 +114,24 @@ export default function SearchList({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                Sắp xếp
+                Sort by
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setSortKey("relevance")}>
-                Mặc định
+                Default
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortKey("name-asc")}>
-                Tên A-Z
+                Name A-Z
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortKey("name-desc")}>
-                Tên Z-A
+                Name Z-A
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortKey("price-asc")}>
-                Giá tăng dần
+                Price: Low to High
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortKey("price-desc")}>
-                Giá giảm dần
+                Price: High to Low
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -159,7 +159,7 @@ export default function SearchList({
                 variant="outline"
                 onClick={() => setVisibleCount((v) => v + 12)}
               >
-                Xem thêm sản phẩm
+                Load more products
               </Button>
             </div>
           )}

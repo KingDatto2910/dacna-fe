@@ -89,7 +89,7 @@ function OrderResult({ order }: { order: TrackedOrder }) {
                   {it.item_name_snapshot} × {it.qty}
                 </span>
                 <span className="font-medium">
-                  {(it.amount / 1000).toLocaleString()}k
+                  ${Number(it.amount).toFixed(2)}
                 </span>
               </li>
             ))}
@@ -99,15 +99,15 @@ function OrderResult({ order }: { order: TrackedOrder }) {
         <div className="text-sm space-y-1">
           <div className="flex justify-between">
             <span>Subtotal</span>
-            <span>{(order.subtotal / 1000).toLocaleString()}k</span>
+            <span>${Number(order.subtotal).toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Shipping</span>
-            <span>{(order.shipping_fee / 1000).toLocaleString()}k</span>
+            <span>${Number(order.shipping_fee).toFixed(2)}</span>
           </div>
           <div className="flex justify-between font-semibold">
             <span>Total</span>
-            <span>{(order.grand_total / 1000).toLocaleString()}k</span>
+            <span>${Number(order.grand_total).toFixed(2)}</span>
           </div>
         </div>
       </CardContent>

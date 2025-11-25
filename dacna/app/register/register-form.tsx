@@ -20,9 +20,13 @@ import { useAuth } from "@/hooks/use-auth";
 /**
  * RegisterForm - Form đăng ký với redirect logic
  * Chức năng: Xử lý đăng ký và tự động redirect nếu đã authenticated
+ * 
+ * ROLE-BASED REDIRECT:
+ * - Admin/Staff users → redirect to /admin (admin dashboard)
+ * - Customer users → redirect to /home (customer homepage)
  */
 export default function RegisterForm() {
-  const { register, isLoading, isAuthenticated } = useAuth();
+  const { register, isLoading, isAuthenticated, user, isAdminOrStaff } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -30,12 +34,17 @@ export default function RegisterForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Redirect to home if already authenticated
+  // Redirect based on role if already authenticated
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.push("/home");
+      // Check user role and redirect accordingly
+      if (isAdminOrStaff) {
+        router.push("/admin");
+      } else {
+        router.push("/home");
+      }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, isAdminOrStaff, router]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

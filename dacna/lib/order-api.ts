@@ -78,17 +78,28 @@ async function fetchApiWithToken<T>(
       },
     });
 
-    const data = await response.json();
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.message || data.error || "API request failed");
+    if (response.status === 401 || response.status === 403) {
+      const body = await safeJson(response);
+      const msg = body?.message || body?.error || "UNAUTHORIZED";
+      if (/expired/i.test(msg)) {
+        throw new Error("TOKEN_EXPIRED");
+      }
+      throw new Error("UNAUTHORIZED");
     }
 
-    return data.data;
+    const data = await safeJson(response);
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || data?.error || "API request failed");
+    }
+    return data.data as T;
   } catch (err: any) {
     console.error(`API Error (Token) at ${path}:`, err);
     throw new Error(err.message || "API Network Error");
   }
+}
+
+async function safeJson(res: Response) {
+  try { return await res.json(); } catch { return null; }
 }
 
 // Public GET helper (no token)
@@ -169,12 +180,15 @@ export async function apiCreateOrder(
  */
 export async function apiCheckoutOrder(
   token: string,
-  orderId: number
+  orderId: number,
+  promotionCode?: string
 ): Promise<void> {
-  await postApiWithToken<{}, { ok: boolean; message: string }>(
+  const body: any = {};
+  if (promotionCode) body.promotion_code = promotionCode.trim();
+  await postApiWithToken<typeof body, { ok: boolean; message: string }>(
     `/api/orders/${orderId}/checkout`,
     token,
-    {}
+    body
   );
 }
 
@@ -221,4 +235,31 @@ export async function apiTrackOrderByCode(code: string): Promise<TrackedOrder> {
   return fetchPublic<TrackedOrder>(
     `/api/orders/track/${encodeURIComponent(code)}`
   );
+}
+
+// ================= PROMOTIONS (public validation) =================
+export interface PromotionValidationResult {
+  promotion_id: number;
+  code: string;
+  discount_amount: number;
+  description?: string;
+}
+
+export async function apiValidatePromotion(
+  code: string,
+  orderAmount: number,
+  token?: string
+): Promise<PromotionValidationResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_URL}/api/promotions/validate`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ code, order_amount: orderAmount })
+  });
+  const data = await safeJson(res);
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.message || data?.error || 'Invalid promotion code');
+  }
+  return data.data as PromotionValidationResult;
 }

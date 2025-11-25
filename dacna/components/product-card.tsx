@@ -7,7 +7,8 @@ import Link from "next/link";
 import { Button } from "./ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { Product } from "@/lib/types";
-import { ShoppingCart, Star, Loader2 } from "lucide-react";
+import { ShoppingCart, Star, Loader2, Heart } from "lucide-react";
+import { useFavorites } from "@/hooks/use-favorites";
 
 interface ProductCardProps {
   product: Product;
@@ -19,6 +20,7 @@ interface ProductCardProps {
 function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart();
   const [isLoading, setIsLoading] = useState(false);
+  const { toggleFavorite, isFavorited } = useFavorites();
 
   // Logic hiển thị sao (rating)
   const renderStars = () => {
@@ -55,9 +57,13 @@ function ProductCard({ product }: ProductCardProps) {
     }, 500); // 0.5 giây delay
   };
 
+  const fav = isFavorited(Number(product.id));
+  // Defensive numeric casting to avoid toFixed errors if backend returns strings
+  const priceValue = Number(product.price) || 0;
+  const salePriceValue = product.salePrice !== undefined && product.salePrice !== null ? Number(product.salePrice) : undefined;
+
   return (
-    // Thẻ cha (với p-0 và flex-col)
-    <Card className="overflow-hidden h-full flex flex-col p-0">
+    <Card className="overflow-hidden h-full flex flex-col p-0 relative group">
       {/* 1. PHẦN HÌNH ẢNH*/}
       <Link href={`/products/${product.id}`}>
         <div className="aspect-square relative overflow-hidden bg-white">
@@ -67,6 +73,15 @@ function ProductCard({ product }: ProductCardProps) {
             fill
             className="object-contain transition-transform group-hover:scale-105"
           />
+          {/* Favorite button overlay */}
+          <button
+            type="button"
+            aria-label="Favorite"
+            onClick={(e) => { e.preventDefault(); toggleFavorite(Number(product.id)); }}
+            className="absolute top-2 right-2 rounded-full bg-white/80 backdrop-blur px-2 py-2 shadow hover:bg-white transition"
+          >
+            <Heart className={`h-4 w-4 ${fav ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+          </button>
         </div>
       </Link>
 
@@ -88,17 +103,17 @@ function ProductCard({ product }: ProductCardProps) {
         )}
         {/* Price Section */}
         <div className="mt-2">
-          {product.salePrice ? (
+          {salePriceValue !== undefined ? (
             <div className="flex items-baseline gap-2">
-              <p className="font-bold text-lg text-red-600">
-                ${product.salePrice.toFixed(2)}
-              </p>
+              <p className="font-bold text-lg text-red-600">${salePriceValue.toFixed(2)}</p>
+              {/* text-red-600 is the display of salePrice */}
               <p className="font-medium text-sm text-gray-500 line-through">
-                ${product.price.toFixed(2)}
+                ${priceValue.toFixed(2)}
               </p>
+              {/* text-gray-500 is the display of original price, line-through is the horizontal line cut through */}
             </div>
           ) : (
-            <p className="font-bold text-lg">${product.price.toFixed(2)}</p>
+            <p className="font-bold text-lg">${priceValue.toFixed(2)}</p>
           )}
         </div>
       </CardContent>

@@ -10,6 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        //When doing dangerous action like delete something
         destructive:
           "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
@@ -27,7 +28,7 @@ const buttonVariants = cva(
         icon: "size-9",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
-      },
+      }, //Configure default variants
     },
     defaultVariants: {
       variant: "default",
@@ -37,16 +38,16 @@ const buttonVariants = cva(
 );
 
 function Button({
-  className,
-  variant,
+  className, //Customize button using more CSS classes
+  variant, //Choose button style variant
   size,
   asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
+  ...props //This allows passing any other button props like onClick, type, disabled, etc.
+}: React.ComponentProps<"button"> & //Buttons are allowed to have all React standard button props
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot : "button";
+  const Comp = asChild ? Slot : "button"; //If asChild is true, use Slot to render any child component as button
 
   return (
     <Comp

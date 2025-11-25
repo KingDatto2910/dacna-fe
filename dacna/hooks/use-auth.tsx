@@ -1,5 +1,5 @@
 // dacna/hooks/use-auth.tsx
-"use client";
+"use client"; //Client Component
 
 import {
   createContext,
@@ -24,31 +24,38 @@ export interface AuthUser {
 
 // 2. Định nghĩa kiểu dữ liệu cho Context
 interface AuthContextType {
-  user: AuthUser | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
-  verifyOtp: (email: string, otp: string) => Promise<void>;
-  logout: () => void;
-}
+  user: AuthUser | null; //Save user info, if not logged in return null
+  token: string | null; // Save JWT token, if not logged in return null
+  isAuthenticated: boolean; //True if token gotten
+  isLoading: boolean; //State for loading
+  login: (credentials: LoginCredentials) => Promise<void>; //Contain Login Credentials: email, pw
+  register: (data: RegisterData) => Promise<void>; //Contain registration data: name, email, pw, etc.
+  verifyOtp: (email: string, otp: string) => Promise<void>; //Contain email and OTP for verification
+  logout: () => void; //Delete token and user info
+  // Helper functions để check role
+  isAdmin: boolean;
+  isStaff: boolean;
+  isAdminOrStaff: boolean;
+} //Promise<void>: Return a promise but does not return any value, jsut notify the promise state
 
 // 3. Tạo Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+//Create context with AuthContextType, if used outside provider, return undefined
 
-// 4. Tạo Provider Component
+//4. Create a provider component to wrap the app and provide auth state
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Bắt đầu ở true để kiểm tra local storage
   const router = useRouter();
 
-  // 5. [QUAN TRỌNG] Kiểm tra đăng nhập khi tải trang
+  //children is all components wrapped by AuthProvider, Ex: navbar, footer, etc.
+  //Data types of children is all the types of React render
+  // 5. Check if logged in on initial load
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem("jwt_token");
-      const storedUser = localStorage.getItem("auth_user");
+      const storedToken = localStorage.getItem("jwt_token"); //Take token from local storage
+      const storedUser = localStorage.getItem("auth_user"); //Take user info from local storage
 
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -70,16 +77,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const { token, user } = await apiLogin(credentials);
 
-      setToken(token);
-      setUser(user);
+      setToken(token); // Set token state
+      setUser(user); // Set user state
 
-      localStorage.setItem("jwt_token", token);
-      localStorage.setItem("auth_user", JSON.stringify(user));
-
-      // Xóa dòng 'await mergeLocalCartToDb(token);' nếu có
+      localStorage.setItem("jwt_token", token); // Save token to local storage
+      localStorage.setItem("auth_user", JSON.stringify(user)); // Save user info to local storage
 
       toast.success(`Welcome back, ${user.name}!`);
-      router.push("/home");
+      
+      // Redirect theo role: admin/staff -> /admin, customer -> /home
+      const isAdmin = user.role === "admin";
+      const isStaff = user.role === "staff";
+
+      if (isAdmin || isStaff) {
+        router.push("/admin");
+      } else {
+        router.push("/home");
+      }
     } catch (error: any) {
       toast.error(error.message || "Login failed");
       throw error;
@@ -122,14 +136,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // 9. Hàm Logout
-  const logout = () => {
+  const logout = (silent: boolean = false) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem("jwt_token");
     localStorage.removeItem("auth_user");
-    toast.success("Logged out successfully.");
+    if (!silent) toast.success("Logged out successfully.");
     router.push("/"); // Về trang login
   };
+
+  // Global window event for token expiry triggered by fetch wrappers
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail === "TOKEN_EXPIRED") {
+        logout(true);
+        toast.error("Session expired. Please log in again.");
+      }
+      if (e.detail === "UNAUTHORIZED") {
+        logout(true);
+        toast.error("Unauthorized. Please log in again.");
+      }
+    };
+    window.addEventListener("auth:logout", handler as EventListener);
+    return () => window.removeEventListener("auth:logout", handler as EventListener);
+  }, []);
 
   const value = {
     user,
@@ -140,6 +170,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     verifyOtp,
     logout,
+    // Helper functions để check role
+    isAdmin: user?.role === "admin",
+    isStaff: user?.role === "staff",
+    isAdminOrStaff: user?.role === "admin" || user?.role === "staff",
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

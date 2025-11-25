@@ -26,9 +26,10 @@ import {
   apiCreateOrder,
   apiCheckoutOrder,
   apiPayOrder,
+  apiValidatePromotion,
   CreateOrderData,
 } from "@/lib/order-api";
-import { apiGetMyCart, apiUpsertCartItem } from "@/lib/cart-api";
+import { apiUpsertCartItem } from "@/lib/cart-api";
 import { getCategories } from "@/lib/api";
 import { Category } from "@/lib/types";
 
@@ -37,25 +38,17 @@ import { Category } from "@/lib/types";
  */
 export default function CheckoutPage() {
   const { items, subtotal, clearCart, isLoading: cartLoading } = useCart();
-  const { isAuthenticated, token, user } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const router = useRouter();
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isLoading, setIsLoading] = useState(false);
-  const [dbCartId, setDbCartId] = useState<number | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [promoLoading, setPromoLoading] = useState(false);
 
-  // Lấy cart ID từ database nếu đã đăng nhập
-  useEffect(() => {
-    if (isAuthenticated && token) {
-      apiGetMyCart(token)
-        .then((cart) => {
-          setDbCartId(cart.id);
-        })
-        .catch((err) => {
-          console.error("Failed to get cart:", err);
-        });
-    }
-  }, [isAuthenticated, token]);
+  // (Optional) could load cart detail here if needed in future
 
   // Load categories cho Navbar
   useEffect(() => {
@@ -71,8 +64,35 @@ export default function CheckoutPage() {
 
   // (REMOVED) Authentication redirect - allow guest checkout
 
-  const shippingFee = subtotal > 500000 ? 0 : 30000; // VND
-  const total = subtotal + shippingFee;
+  const shippingFee = subtotal > 100 ? 0 : 5; // USD - free shipping over $100
+  const preDiscountTotal = subtotal + shippingFee;
+  const total = Math.max(0, preDiscountTotal - discountAmount);
+
+  async function handleApplyPromo() {
+    if (!promoInput.trim()) return;
+    setPromoLoading(true);
+    try {
+      const result = await apiValidatePromotion(
+        promoInput.trim(),
+        preDiscountTotal,
+        token || undefined
+      );
+      setAppliedPromo(result.code);
+      setDiscountAmount(result.discount_amount);
+      toast.success(`Applied code ${result.code}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Invalid code";
+      toast.error(msg);
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
+  function handleRemovePromo() {
+    setAppliedPromo(null);
+    setDiscountAmount(0);
+    setPromoInput("");
+  }
 
   const handlePlaceOrder = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -122,7 +142,8 @@ export default function CheckoutPage() {
           payment_method: paymentMethod,
           subtotal: subtotal,
           shipping_fee: shippingFee,
-          grand_total: total,
+          grand_total: preDiscountTotal,
+          promotion_code: appliedPromo || undefined,
         };
 
         // Call backend API to create guest order (need to implement this endpoint)
@@ -165,7 +186,7 @@ export default function CheckoutPage() {
       }
 
       // Checkout đơn hàng
-      await apiCheckoutOrder(token, orderId);
+      await apiCheckoutOrder(token, orderId, appliedPromo || undefined);
 
       // Thanh toán
       await apiPayOrder(token, orderId, paymentMethod);
@@ -177,9 +198,10 @@ export default function CheckoutPage() {
           newOrder.order_code
         )}&total=${encodeURIComponent(total.toString())}`
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Failed to place order";
       console.error("Checkout error:", error);
-      toast.error(error.message || "Failed to place order");
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -337,11 +359,11 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         <p className="font-medium">
-                          ₫
+                          $
                           {(
                             (item.product.salePrice ?? item.product.price) *
                             item.quantity
-                          ).toLocaleString()}
+                          ).toFixed(2)}
                         </p>
                       </div>
                     ))}
@@ -349,19 +371,37 @@ export default function CheckoutPage() {
 
                   <Separator />
 
-                  {/* Ô Voucher */}
+                  {/* Promotion Code */}
                   <div className="flex space-x-2">
                     <Input
                       placeholder="Gift card or discount code"
-                      disabled={isLoading}
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      disabled={isLoading || !!appliedPromo || promoLoading}
                     />
-                    <Button
-                      variant="outline"
-                      type="button"
-                      disabled={isLoading}
-                    >
-                      Apply
-                    </Button>
+                    {appliedPromo ? (
+                      <Button
+                        variant="destructive"
+                        type="button"
+                        onClick={handleRemovePromo}
+                        disabled={isLoading}
+                      >
+                        Remove
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={isLoading || promoLoading}
+                      >
+                        {promoLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   <Separator />
@@ -370,16 +410,22 @@ export default function CheckoutPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <p>Subtotal</p>
-                      <p>₫{subtotal.toLocaleString()}</p>
+                      <p>${subtotal.toFixed(2)}</p>
                     </div>
                     <div className="flex justify-between">
                       <p>Shipping</p>
-                      <p>₫{shippingFee.toLocaleString()}</p>
+                      <p>${shippingFee.toFixed(2)}</p>
                     </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <p>Discount ({appliedPromo})</p>
+                        <p>-${discountAmount.toFixed(2)}</p>
+                      </div>
+                    )}
                     <Separator />
                     <div className="flex justify-between text-lg font-bold">
                       <p>Total</p>
-                      <p>₫{total.toLocaleString()}</p>
+                      <p>${total.toFixed(2)}</p>
                     </div>
                   </div>
 

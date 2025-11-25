@@ -113,15 +113,28 @@ export async function recalculateTotals(orderId) {
   );
 
   const subtotal = rows[0].subtotal || 0;
-  const shipping_fee = subtotal > 0 && subtotal < 500000 ? 30000 : 0; // Free shipping over 500k
+  const shipping_fee = subtotal > 0 && subtotal < 100 ? 5 : 0; // Free shipping over $100
+  // Fetch any existing promotion application
+  const [promoRows] = await pool.execute(
+    `SELECT promotion_id, discount_amount FROM orders WHERE id = :orderId`,
+    { orderId }
+  );
+  let discount = 0;
+  if (promoRows.length) {
+    discount = promoRows[0].discount_amount || 0;
+  }
+  // Ensure discount never exceeds subtotal+shipping
+  const maxEligible = subtotal + shipping_fee;
+  if (discount > maxEligible) discount = maxEligible;
 
   await pool.execute(
     `UPDATE orders
-     SET subtotal = :subtotal, 
-         shipping_fee = :shipping_fee, 
-         grand_total = :subtotal + :shipping_fee
+     SET subtotal = :subtotal,
+         shipping_fee = :shipping_fee,
+         discount_amount = :discount,
+         grand_total = (:subtotal + :shipping_fee) - :discount
      WHERE id = :orderId`,
-    { subtotal, shipping_fee, orderId }
+    { subtotal, shipping_fee, discount, orderId }
   );
 }
 
@@ -164,10 +177,53 @@ export async function payOrder(orderId, method) {
      WHERE id = :orderId`,
     { method, orderId }
   );
+  // Record promotion usage after successful payment
+  const [promoInfo] = await pool.execute(
+    `SELECT promotion_id, user_id FROM orders WHERE id = :orderId AND promotion_id IS NOT NULL`,
+    { orderId }
+  );
+  if (promoInfo.length && promoInfo[0].promotion_id) {
+    // Increment usage_count and insert into user_promotions if user exists
+    await pool.execute(
+      `UPDATE promotions SET usage_count = usage_count + 1 WHERE id = :pid`,
+      { pid: promoInfo[0].promotion_id }
+    );
+    if (promoInfo[0].user_id) {
+      await pool.execute(
+        `INSERT INTO user_promotions (user_id, promotion_id, order_id) VALUES (:uid, :pid, :oid)`,
+        { uid: promoInfo[0].user_id, pid: promoInfo[0].promotion_id, oid: orderId }
+      );
+    }
+  }
+}
+
+/** Apply a validated promotion to an order (does not recalc subtotal) */
+export async function applyPromotion(orderId, promotion) {
+  // promotion: { id, discount_amount, code }
+  await pool.execute(
+    `UPDATE orders SET promotion_id = :pid, promotion_code = :code, discount_amount = :discount WHERE id = :orderId`,
+    { pid: promotion.id, code: promotion.code, discount: promotion.discount_amount, orderId }
+  );
+  // Recalculate totals to reflect discount
+  await recalculateTotals(orderId);
 }
 
 /** Update order status (admin/staff only) */
 export async function updateStatus(orderId, newStatus) {
+  // Fetch current order status & payment
+  const [rows] = await pool.execute(
+    `SELECT order_status, payment_status FROM orders WHERE id = :orderId LIMIT 1`,
+    { orderId }
+  );
+  if (!rows.length) throw new Error("Không tìm thấy đơn hàng");
+  const current = rows[0];
+  // Only allow status change if order is paid and not cart/cancelled
+  if (current.payment_status !== 'paid') {
+    throw new Error('Chỉ cập nhật trạng thái cho đơn hàng đã thanh toán');
+  }
+  if (['cart','cancelled'].includes(current.order_status)) {
+    throw new Error('Không thể cập nhật trạng thái đơn hàng ở trạng thái hiện tại');
+  }
   await pool.execute(
     "UPDATE orders SET order_status = :newStatus, updated_at = NOW() WHERE id = :orderId",
     { newStatus, orderId }
@@ -186,16 +242,40 @@ export async function getCartDetailByUserId(userId) {
 
 /** Get or create cart for user */
 export async function findOrCreateCart(userId) {
+  // Try to get existing cart first
   let cart = await getCartDetailByUserId(userId);
   if (cart) return cart;
 
+  // Try to create new cart with INSERT IGNORE to handle race conditions
   const order_code = `CART${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const [result] = await pool.execute(
-    `INSERT INTO orders (order_code, user_id, order_status) VALUES (:order_code, :userId, 'cart')`,
-    { order_code, userId }
-  );
+  try {
+    const [result] = await pool.execute(
+      `INSERT IGNORE INTO orders (order_code, user_id, order_status) VALUES (:order_code, :userId, 'cart')`,
+      { order_code, userId }
+    );
 
-  return getOrderDetail(result.insertId);
+    // If insert succeeded, return the new cart
+    if (result.insertId) {
+      return getOrderDetail(result.insertId);
+    }
+
+    // If INSERT IGNORE didn't insert (another process created it), fetch it
+    cart = await getCartDetailByUserId(userId);
+    if (cart) return cart;
+
+    // Fallback: create with a new unique code
+    const fallbackCode = `CART${Date.now()}${Math.floor(Math.random() * 10000)}`;
+    const [fallbackResult] = await pool.execute(
+      `INSERT INTO orders (order_code, user_id, order_status) VALUES (:order_code, :userId, 'cart')`,
+      { order_code: fallbackCode, userId }
+    );
+    return getOrderDetail(fallbackResult.insertId);
+  } catch (error) {
+    // If error, try one more time to get existing cart
+    cart = await getCartDetailByUserId(userId);
+    if (cart) return cart;
+    throw error;
+  }
 }
 
 /** Get user's order history (excluding cart) */
